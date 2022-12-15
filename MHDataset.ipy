@@ -1,0 +1,246 @@
+# linear algebra
+import numpy as np 
+
+# data processing
+import pandas as pd 
+import tensorflow as tf    # Of course, we need TensorFlow.
+from tensorflow import keras
+# data visualization
+import seaborn as sns
+%matplotlib inline
+from matplotlib import pyplot as plt
+from matplotlib import style
+
+# Algorithms
+from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix
+from sklearn.model_selection import train_test_split
+from sklearn import linear_model
+from sklearn.linear_model import LogisticRegression
+from sklearn import metrics
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_curve
+
+# Read the CSV input file and show first 6 rows
+
+df_train = pd.read_csv(r'C:\Users\laptop\Desktop\Impactedtooth(test).csv')
+
+df_test = pd.read_csv(r'C:\Users\laptop\Desktop\Impactedtooth(test).csv')
+df_train.columns.values
+df_train.head(588)
+print(df_train)
+#dataset analysis
+df_train.info()
+# analysing the mean, std of the dataset
+df_train.describe()
+df_train.head(100)
+
+# Analysing factors that mostly affects the teeth to be impacted
+#1.Age
+df_train[["Age", "Impacted"]].groupby(['Age'], as_index=False).mean().sort_values(by='Impacted', ascending=False)
+#2.Size
+df_train[["Size", "Impacted"]].groupby(['Size'], as_index=False).mean().sort_values(by='Impacted', ascending=False)
+#3.Gender
+df_train[["Gender", "Impacted"]].groupby(['Gender'], as_index=False).mean().sort_values(by='Impacted', ascending=False)
+
+# we see th relationship between Age, size and Gender
+# 1.Age and Gender
+Impacted = 'Impacted'
+Not_impacted = 'not impacted'
+fig, axes = plt.subplots(nrows=1, ncols=2,figsize=(10, 4))
+girl = df_train[df_train['Gender']=='F']
+boy= df_train[df_train['Gender']=='M']
+ax = sns.distplot(girl[girl['Impacted']==1].Age.dropna(), bins=8, label = Impacted, ax = axes[0], kde =False)
+ax = sns.distplot(girl[girl['Impacted']==0].Age.dropna(), bins=40, label = Not_impacted, ax = axes[0], kde =False)
+ax.legend()
+ax.set_title('Female')
+ax = sns.distplot(boy[boy['Impacted']==1].Age.dropna(), bins=8, label = Impacted, ax = axes[1], kde = False)
+ax = sns.distplot(boy[boy['Impacted']==0].Age.dropna(), bins=40, label = Not_impacted, ax = axes[1], kde = False)
+ax.legend()
+_ = ax.set_title('Male')
+
+#2. Size of the teeth and gender
+
+Impacted = 'Impacted'
+Not_impacted = 'not impacted'
+fig, axes = plt.subplots(nrows=1, ncols=2,figsize=(10, 4))
+girl = df_train[df_train['Gender']=='F']
+boy= df_train[df_train['Gender']=='M']
+ax = sns.distplot(girl[girl['Impacted']==1].Size.dropna(), bins=8, label = Impacted, ax = axes[0], kde =False)
+ax = sns.distplot(girl[girl['Impacted']==0].Size.dropna(), bins=40, label = Not_impacted, ax = axes[0], kde =False)
+ax.legend()
+ax.set_title('Female')
+ax = sns.distplot(boy[boy['Impacted']==1].Size.dropna(), bins=8, label = Impacted, ax = axes[1], kde = False)
+ax = sns.distplot(boy[boy['Impacted']==0].Size.dropna(), bins=40, label = Not_impacted, ax = axes[1], kde = False)
+#sns.distplot(x, bins=50, kde=False)
+#ac.show()
+ax.legend()
+_ = ax.set_title('Male')
+
+#size
+sns.barplot(x='Pcatagory', y='Impacted', data=df_train)
+
+grid = sns.FacetGrid(df_train, col='Impacted', row='Pcatagory', size=2.2, aspect=1.6)
+grid.map(plt.hist, 'Age', alpha=.5, bins=20)
+grid.add_legend();
+
+guess_ages = np.zeros((2,3))
+guess_ages
+
+#Data preprocessing
+#1.Age
+data = [df_train, df_test]
+
+for dataset in data:
+    mean = df_train["Age"].mean()
+    std = df_train["Age"].std()
+    is_null = dataset["Age"].isnull().sum()
+    # compute random numbers between the mean, std and is_null
+    rand_age = np.random.randint(mean - std, mean + std, size = is_null)
+    # fill NaN values in Age column with random values generated
+    age_slice = dataset["Age"].copy()
+    age_slice[np.isnan(age_slice)] = rand_age
+    dataset["Age"] = age_slice
+    dataset["Age"] = df_train["Age"].astype(int)
+df_train["Age"].isnull().sum()
+
+#Creating age group
+
+#1.
+df_train['AgeGroup'] = pd.cut(df_train['Age'], 4)
+df_train[['AgeGroup', 'Impacted']].groupby(['AgeGroup'], as_index=False).mean().sort_values(by='AgeGroup', ascending=True)
+
+data = [df_train,df_test]
+for dataset in data:
+    dataset['Age'] = dataset['Age'].astype(int)
+    dataset.loc[ dataset['Age'] <=0 , 'Age'] = 0
+    dataset.loc[(dataset['Age'] > 0) & (dataset['Age'] <= 7), 'Age'] = 1
+    dataset.loc[(dataset['Age'] > 7) & (dataset['Age'] <= 15), 'Age'] = 2
+    dataset.loc[(dataset['Age'] > 15) & (dataset['Age'] <= 24), 'Age'] = 3
+    dataset.loc[(dataset['Age'] > 24), 'Age'] = 4
+
+#combine age group with age 
+df_train= df_train.drop(['AgeGroup'], axis=1)
+
+combine = [df_train,df_test]
+df_train.head()
+
+for dataset in combine:
+    dataset['Age*Class'] = dataset.Age * dataset.Pcatagory
+
+df_train .loc[:, ['Age*Class', 'Age', 'Pcatagory']].head(10)
+
+#drop date check up from both train and test dataframe
+
+df_train = df_train.drop(['Date of checkup'], axis=1)
+df_test = df_test.drop(['Date of checkup'], axis=1)
+combine = [df_train]
+
+df_train.shape
+
+
+#2.converting gender in to numeric value
+df_train,df_test
+Genders = {"M": 0, "F": 1}
+data = [df_train,df_test]
+
+for dataset in data:
+    dataset['Gender'] = dataset['Gender'].map(Genders)
+    
+#3.Creating size into floats   
+
+data = [df_train,df_test]
+for dataset in data:
+    dataset['Size'] = dataset['Size'].fillna(0)
+    dataset['Size'] = dataset['Size'].astype(int)   
+# Size of the teeth catagory
+
+#1. creating size group
+df_train['AgeGroup']= pd.cut(df_train['Age'] , 4).cat.codes
+df_train['SizeGroup']=pd.cut(df_train['Size'] , 4).cat.codes
+
+
+for dataset in data:
+    dataset.loc[ dataset['Size'] <= 1.2, 'Size'] = 0
+    dataset.loc[(dataset['Size'] > 1.2) & (dataset['Size'] <= 12.1), 'Size'] = 1
+    dataset.loc[(dataset['Size'] > 12.1) & (dataset['Size'] <= 17), 'Size'] = 2
+    dataset.loc[(dataset['Size'] > 17) & (dataset['Size'] <= 19), 'Size']   = 3
+    dataset.loc[(dataset['Size'] >= 19), 'Size' ]   = 4
+    dataset['Size'] = dataset['Size'].astype(int)
+
+# size from test dataset
+df_test['Size'].fillna(df_test['Size'].dropna().median(), inplace=True)
+df_test.head()
+
+
+# Training Dataset and Prediction
+
+def normalization(df_train):
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaler = scaler.fit(df_train)
+    print('')
+    print('Min: %f, Max: %f' % (scaler.data_min_, scaler.data_max_))
+    return scaler.transform(df_train)
+
+X_train = df_train.drop("Impacted", axis=1)
+Y_train = df_train["Impacted"]
+X_test  =  df_test.drop("Gender", axis=1).copy()
+
+#X_test  =  df_test('Pcatagory','Age','Size','Impacted','Age*Class','Gender')
+X_train.shape, Y_train.shape, X_test.shape
+
+X_test =df_test.iloc[:6, :7].values
+
+
+df_train=np.round(np.array(df_train),2)
+print(df_train)
+
+
+X_train, X_test, y_train, y_test = train_test_split(X_train, Y_train, test_size = 0.30)
+print( X_train.shape, y_train.shape)
+print( X_test.shape, y_test.shape)
+
+# Linearmodel
+lm = linear_model.LinearRegression()
+model = lm.fit(X_train, y_train)
+predictions = lm.predict(X_test)
+predictions[0:5]
+## The line / model
+plt.scatter(y_test, predictions)
+plt.xlabel("True Values")
+plt.ylabel("Predictions")
+print( model.score(X_test, y_test))
+
+
+#Logistic regression model
+
+logreg = LogisticRegression()
+logreg.fit(X_train, y_train)
+y_pred = logreg.predict(X_test)
+print('Accuracy of logistic regression classifier on test set: {:.2f}'.format(logreg.score(X_test, y_test)))
+
+#confusion matrix
+
+confusion_matrix = confusion_matrix(y_test, y_pred)
+print(confusion_matrix)
+
+#Compute precision, recall, F-measure and support
+
+print(classification_report(y_test, y_pred))
+#ROC Curve
+
+logit_roc_auc = roc_auc_score(y_test, logreg.predict(X_test))
+fpr, tpr, thresholds = roc_curve(y_test, logreg.predict_proba(X_test)[:,1])
+plt.figure()
+plt.plot(fpr, tpr, label='Logistic Regression (area = %0.2f)' % logit_roc_auc)
+plt.plot([0, 1], [0, 1],'r--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC characteristic')
+plt.legend(loc="lower right")
+plt.savefig('Log_ROC')
+plt.show()
+ 
